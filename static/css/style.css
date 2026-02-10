@@ -1,0 +1,220 @@
+/* Sidebar transition */
+.sidebar {
+    width: 300px;
+    transition: width 0.25s ease;
+}
+
+.sidebar.collapsed {
+    width: 0;
+}
+
+.sidebar.collapsed .sidebar-inner {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.sidebar-inner {
+    width: 300px;
+    transition: opacity 0.15s ease;
+}
+
+/* Toggle icon rotation when collapsed */
+.sidebar.collapsed ~ .sidebar-toggle #toggle-icon,
+#sidebar-toggle.collapsed #toggle-icon {
+    transform: rotate(180deg);
+}
+
+/* Folder list items */
+.folder-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.5rem;
+    border-radius: 0.25rem;
+    background: rgba(55, 65, 81, 0.5);
+    cursor: default;
+    user-select: none;
+}
+
+.folder-item:hover {
+    background: rgba(55, 65, 81, 0.8);
+}
+
+.folder-item .drag-handle {
+    cursor: grab;
+    color: #6b7280;
+    flex-shrink: 0;
+}
+
+.folder-item .drag-handle:hover {
+    color: #9ca3af;
+}
+
+.folder-item .folder-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.8125rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+    padding: 0.125rem 0.25rem;
+    color: #e5e7eb;
+    outline: none;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.folder-item .folder-name:focus {
+    border-color: #3b82f6;
+    background: rgba(31, 41, 55, 0.8);
+}
+
+.folder-item .remove-btn {
+    flex-shrink: 0;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 0.125rem;
+    border-radius: 0.25rem;
+    transition: color 0.15s, background 0.15s;
+}
+
+.folder-item .remove-btn:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+/* SortableJS ghost */
+.sortable-ghost {
+    opacity: 0.4;
+}
+
+.sortable-chosen {
+    background: rgba(59, 130, 246, 0.15) !important;
+}
+
+/* Image list items */
+.image-item {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8125rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #d1d5db;
+    transition: background 0.1s;
+}
+
+.image-item:hover {
+    background: rgba(55, 65, 81, 0.7);
+}
+
+.image-item.selected {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+/* Mode buttons */
+.mode-btn {
+    color: #9ca3af;
+}
+
+.mode-btn:hover {
+    color: #e5e7eb;
+}
+
+.mode-btn.active {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+/* Grid view */
+.grid-view {
+    display: grid;
+    gap: 1rem;
+    height: 100%;
+}
+
+.grid-cell {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.grid-cell .cell-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #60a5fa;
+    background: rgba(31, 41, 55, 0.8);
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.25rem;
+    text-align: center;
+    align-self: center;
+    margin-bottom: 0.125rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    flex-shrink: 0;
+}
+
+.grid-cell img {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    object-fit: contain;
+}
+
+/* Overlay view */
+.overlay-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.overlay-label-wrapper {
+    text-align: center;
+    padding-bottom: 0.5rem;
+    flex-shrink: 0;
+}
+
+.overlay-img-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+}
+
+.overlay-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #4b5563;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+}
+
+/* Focus outline for image list */
+#image-list:focus {
+    outline: none;
+}

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Compare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="h-full bg-gray-900 text-gray-100 overflow-hidden">
+    <div id="app" class="flex h-full">
+
+        <!-- Sidebar Toggle Button -->
+        <button id="sidebar-toggle"
+                class="sidebar-toggle flex items-center justify-center w-6 min-w-[1.5rem] bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-gray-100 transition-colors border-r border-gray-700 z-10 cursor-pointer"
+                title="Toggle sidebar">
+            <svg id="toggle-icon" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+        </button>
+
+        <!-- Sidebar -->
+        <aside id="sidebar" class="sidebar flex flex-col bg-gray-800 border-r border-gray-700 overflow-hidden">
+            <div class="sidebar-inner flex flex-col h-full">
+
+                <!-- Add Folder Section -->
+                <div class="p-3 border-b border-gray-700">
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Add Folder</label>
+                    <div class="flex gap-2">
+                        <input id="folder-input"
+                               type="text"
+                               placeholder="/path/to/folder"
+                               class="flex-1 bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 min-w-0">
+                        <button id="add-folder-btn"
+                                class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-3 py-1.5 rounded transition-colors whitespace-nowrap cursor-pointer">
+                            Add
+                        </button>
+                    </div>
+                    <p id="folder-error" class="text-red-400 text-xs mt-1 hidden"></p>
+                </div>
+
+                <!-- Folder List Section -->
+                <div class="p-3 border-b border-gray-700 flex-shrink-0">
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Folders</label>
+                    <ul id="folder-list" class="space-y-1 max-h-48 overflow-y-auto">
+                        <!-- Folder items rendered by JS -->
+                    </ul>
+                    <p id="no-folders" class="text-gray-500 text-xs italic">No folders added yet.</p>
+                </div>
+
+                <!-- Image List Section -->
+                <div class="flex-1 flex flex-col p-3 min-h-0">
+                    <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Images</label>
+                    <input id="image-search"
+                           type="text"
+                           placeholder="Search images..."
+                           class="bg-gray-700 border border-gray-600 rounded px-2 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500 mb-2">
+                    <ul id="image-list" class="flex-1 overflow-y-auto space-y-0.5" tabindex="0">
+                        <!-- Image names rendered by JS -->
+                    </ul>
+                    <p id="no-images" class="text-gray-500 text-xs italic">No common images found.</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Display Area -->
+        <main id="main-area" class="flex-1 flex flex-col min-w-0 min-h-0">
+
+            <!-- Toolbar -->
+            <div id="toolbar" class="flex items-center gap-4 p-3 bg-gray-800 border-b border-gray-700 flex-shrink-0">
+                <!-- Mode Toggle -->
+                <div class="flex items-center gap-1 bg-gray-700 rounded p-0.5">
+                    <button id="mode-grid"
+                            class="mode-btn px-3 py-1 text-sm rounded transition-colors cursor-pointer"
+                            data-mode="grid">
+                        Grid
+                    </button>
+                    <button id="mode-overlay"
+                            class="mode-btn px-3 py-1 text-sm rounded transition-colors cursor-pointer"
+                            data-mode="overlay">
+                        Overlay
+                    </button>
+                </div>
+
+                <!-- Grid Config (visible in grid mode) -->
+                <div id="grid-config" class="flex items-center gap-2 text-sm">
+                    <label class="text-gray-400">Rows:</label>
+                    <input id="grid-rows" type="number" min="1" max="10" value="1"
+                           class="w-14 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-gray-100 text-center focus:outline-none focus:border-blue-500">
+                    <label class="text-gray-400">Cols:</label>
+                    <input id="grid-cols" type="number" min="1" max="10" value="2"
+                           class="w-14 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-gray-100 text-center focus:outline-none focus:border-blue-500">
+                </div>
+
+                <!-- Overlay folder indicator -->
+                <div id="overlay-info" class="text-sm text-gray-300 hidden">
+                    <span id="overlay-folder-name" class="font-medium text-blue-400"></span>
+                    <span id="overlay-counter" class="text-gray-500 ml-2"></span>
+                </div>
+            </div>
+
+            <!-- Display Area -->
+            <div id="display-area" class="flex-1 overflow-auto p-4 min-h-0">
+                <!-- Grid view -->
+                <div id="grid-view" class="grid-view hidden">
+                    <!-- Grid cells rendered by JS -->
+                </div>
+
+                <!-- Overlay view -->
+                <div id="overlay-view" class="overlay-view hidden">
+                    <div class="overlay-label-wrapper">
+                        <span id="overlay-label" class="text-sm font-medium text-blue-400 bg-gray-800/80 px-3 py-1 rounded"></span>
+                    </div>
+                    <div class="overlay-img-wrapper">
+                        <img id="overlay-img" class="overlay-img" src="" alt="">
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="empty-state" class="flex items-center justify-center h-full text-gray-500">
+                    <p class="text-center">Add folders and select an image to begin comparing.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
