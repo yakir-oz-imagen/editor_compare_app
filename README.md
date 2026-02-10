@@ -1,4 +1,4 @@
-# Image Compare
+# Compare Images Across Folders
 
 A local web application for comparing images with the same name across multiple folders. Built for workflows like evaluating model outputs, reviewing rendering passes, or any task where you need to visually compare corresponding images side by side.
 
@@ -80,6 +80,12 @@ python app.py
 ## Supported Image Formats
 
 PNG, JPG, JPEG, GIF, WebP, TIFF, BMP, SVG
+
+## Wishlist
+
+1. **Diff image & image manipulation tools** — Add a button to generate difference images between folders, along with other manipulation tools (e.g. brightness/contrast adjustment, channel isolation).
+2. **Automatic metric calculation & display** — Compute and show image similarity metrics (e.g. PSNR, SSIM, LPIPS) between corresponding images across folders.
+3. **Performance optimizations** — Improve speed and reduce memory usage for large image sets and high-resolution files (lazy loading, tiling, downsampled previews).
 
 ## Project Structure
 
