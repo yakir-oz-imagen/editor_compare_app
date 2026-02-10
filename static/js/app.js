@@ -10,6 +10,11 @@ let overlayIndex = 0;      // index into checkedFolders for overlay mode
 let nextFolderId = 1;
 let sidebarCollapsed = false;
 
+// Zoom & Pan (shared across all images)
+let zoomLevel = 1;        // 1 = fit, higher = zoomed in
+let panX = 0.5;           // 0-1, normalized center of viewport in image space
+let panY = 0.5;
+
 // ===========================================================================
 // DOM References
 // ===========================================================================
@@ -261,6 +266,9 @@ function renderImageList() {
 function selectImage(name) {
     selectedImage = name;
     overlayIndex = 0;
+    zoomLevel = 1;
+    panX = 0.5;
+    panY = 0.5;
     renderImageList();
     renderDisplay();
 }
@@ -395,15 +403,23 @@ function renderGrid() {
         label.textContent = folder.name;
         label.title = folder.path;
 
+        const zoomContainer = document.createElement('div');
+        zoomContainer.className = 'zoom-container';
+
         const img = document.createElement('img');
+        img.className = 'zoom-img';
         img.src = imageUrl(folder.path, selectedImage);
         img.alt = `${folder.name} - ${selectedImage}`;
-        img.loading = 'eager';
+        img.addEventListener('load', () => applyZoomPan());
 
+        zoomContainer.appendChild(img);
         cell.appendChild(label);
-        cell.appendChild(img);
+        cell.appendChild(zoomContainer);
         gridView.appendChild(cell);
     });
+
+    // Apply zoom after a frame so containers have layout dimensions
+    requestAnimationFrame(() => applyZoomPan());
 }
 
 // ===========================================================================
@@ -423,6 +439,9 @@ function renderOverlay() {
     overlayFolderName.textContent = folder.name;
     overlayCounter.textContent = `(${overlayIndex + 1} / ${checked.length})`;
 
+    // Apply zoom/pan (image onload will re-apply once dimensions are known)
+    requestAnimationFrame(() => applyZoomPan());
+
     // Preload adjacent images
     preloadOverlayImages(checked);
 }
@@ -438,6 +457,197 @@ function preloadOverlayImages(checked) {
         }
     });
 }
+
+// ===========================================================================
+// Zoom & Pan
+// ===========================================================================
+
+/**
+ * Compute the "object-fit: contain" dimensions for an image inside a container.
+ */
+function getFitDimensions(containerW, containerH, natW, natH) {
+    const imgAspect = natW / natH;
+    const contAspect = containerW / containerH;
+    let fitW, fitH;
+    if (contAspect > imgAspect) {
+        fitH = containerH;
+        fitW = containerH * imgAspect;
+    } else {
+        fitW = containerW;
+        fitH = containerW / imgAspect;
+    }
+    return { fitW, fitH };
+}
+
+/**
+ * Return only zoom-containers that are actually visible (non-zero size).
+ * Hidden containers (inside a display:none parent) report 0 dimensions.
+ */
+function getVisibleZoomContainers() {
+    return Array.from(document.querySelectorAll('.zoom-container')).filter(
+        c => c.clientWidth > 0 && c.clientHeight > 0
+    );
+}
+
+/**
+ * Clamp panX/panY so no empty space is shown beyond image edges.
+ * Uses the first visible zoom-container for reference dimensions.
+ */
+function clampPan() {
+    const containers = getVisibleZoomContainers();
+    if (containers.length === 0) return;
+    const container = containers[0];
+    const img = container.querySelector('.zoom-img');
+    if (!img || !img.naturalWidth) return;
+
+    const cW = container.clientWidth;
+    const cH = container.clientHeight;
+    const { fitW, fitH } = getFitDimensions(cW, cH, img.naturalWidth, img.naturalHeight);
+    const displayW = fitW * zoomLevel;
+    const displayH = fitH * zoomLevel;
+
+    if (displayW <= cW) {
+        panX = 0.5;
+    } else {
+        const minPanX = cW / (2 * displayW);
+        const maxPanX = 1 - minPanX;
+        panX = Math.max(minPanX, Math.min(maxPanX, panX));
+    }
+    if (displayH <= cH) {
+        panY = 0.5;
+    } else {
+        const minPanY = cH / (2 * displayH);
+        const maxPanY = 1 - minPanY;
+        panY = Math.max(minPanY, Math.min(maxPanY, panY));
+    }
+}
+
+/**
+ * Apply the shared zoomLevel / panX / panY to every visible .zoom-container.
+ */
+function applyZoomPan() {
+    clampPan();
+
+    const containers = getVisibleZoomContainers();
+    containers.forEach(container => {
+        const img = container.querySelector('.zoom-img');
+        if (!img || !img.naturalWidth) return;
+
+        const cW = container.clientWidth;
+        const cH = container.clientHeight;
+
+        const { fitW, fitH } = getFitDimensions(cW, cH, img.naturalWidth, img.naturalHeight);
+        const displayW = fitW * zoomLevel;
+        const displayH = fitH * zoomLevel;
+
+        img.style.width = displayW + 'px';
+        img.style.height = displayH + 'px';
+
+        // Position so that panX/panY (image-space fraction) is at container center
+        let left, top;
+        if (displayW <= cW) {
+            left = (cW - displayW) / 2;
+        } else {
+            left = cW / 2 - panX * displayW;
+            left = Math.max(cW - displayW, Math.min(0, left));
+        }
+        if (displayH <= cH) {
+            top = (cH - displayH) / 2;
+        } else {
+            top = cH / 2 - panY * displayH;
+            top = Math.max(cH - displayH, Math.min(0, top));
+        }
+
+        img.style.left = left + 'px';
+        img.style.top = top + 'px';
+    });
+}
+
+/**
+ * Handle wheel events on the display area for zoom (Ctrl/Cmd+scroll)
+ * and pan (plain scroll).
+ */
+function handleWheel(e) {
+    const container = e.target.closest('.zoom-container');
+    if (!container) return;
+
+    const img = container.querySelector('.zoom-img');
+    if (!img || !img.naturalWidth) return;
+
+    e.preventDefault();
+
+    const isZoom = e.ctrlKey || e.metaKey;
+
+    if (isZoom) {
+        // --- Zoom toward cursor ---
+        const rect = container.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        const cW = container.clientWidth;
+        const cH = container.clientHeight;
+        const { fitW, fitH } = getFitDimensions(cW, cH, img.naturalWidth, img.naturalHeight);
+        const displayW = fitW * zoomLevel;
+        const displayH = fitH * zoomLevel;
+
+        // Current image offset
+        const curLeft = parseFloat(img.style.left) || (cW - displayW) / 2;
+        const curTop  = parseFloat(img.style.top)  || (cH - displayH) / 2;
+
+        // Normalized image point under cursor (0-1)
+        const imgPtX = (mouseX - curLeft) / displayW;
+        const imgPtY = (mouseY - curTop)  / displayH;
+
+        // Compute new zoom level
+        let delta = e.deltaY;
+        if (e.deltaMode === 1) delta *= 16;
+        const factor = Math.pow(0.998, delta);
+        const newZoom = Math.max(1, Math.min(40, zoomLevel * factor));
+        if (newZoom === zoomLevel) return;
+
+        const newDisplayW = fitW * newZoom;
+        const newDisplayH = fitH * newZoom;
+
+        // New offset so that same image point stays under cursor
+        const newLeft = mouseX - imgPtX * newDisplayW;
+        const newTop  = mouseY - imgPtY * newDisplayH;
+
+        // Derive new pan center (fraction of image at viewport center)
+        panX = (cW / 2 - newLeft) / newDisplayW;
+        panY = (cH / 2 - newTop)  / newDisplayH;
+        zoomLevel = newZoom;
+
+        applyZoomPan();
+    } else {
+        // --- Pan ---
+        if (zoomLevel <= 1) return;
+
+        const cW = container.clientWidth;
+        const cH = container.clientHeight;
+        const { fitW, fitH } = getFitDimensions(cW, cH, img.naturalWidth, img.naturalHeight);
+        const displayW = fitW * zoomLevel;
+        const displayH = fitH * zoomLevel;
+
+        let deltaX = e.deltaX;
+        let deltaY = e.deltaY;
+        if (e.deltaMode === 1) { deltaX *= 16; deltaY *= 16; }
+
+        // Convert pixel scroll to fraction of displayed image
+        panX += deltaX / displayW;
+        panY += deltaY / displayH;
+
+        applyZoomPan();
+    }
+}
+
+// Attach wheel handler to the display area (covers both grid and overlay)
+displayArea.addEventListener('wheel', handleWheel, { passive: false });
+
+// Re-apply zoom/pan on window resize so positions stay correct
+window.addEventListener('resize', () => applyZoomPan());
+
+// Overlay image onload: re-apply zoom/pan once natural dimensions are known
+overlayImg.addEventListener('load', () => applyZoomPan());
 
 // ===========================================================================
 // Initialize
