@@ -1,5 +1,6 @@
 import io
 import os
+from functools import lru_cache
 from flask import Flask, render_template, request, jsonify, send_from_directory, send_file, abort
 from PIL import Image
 
@@ -10,8 +11,11 @@ IMAGE_EXTENSIONS = {
     '.tiff', '.tif', '.bmp', '.svg',
 }
 
-# Formats that browsers cannot display natively — convert to PNG before serving
-CONVERT_TO_PNG = {'.tiff', '.tif', '.bmp'}
+# Formats that browsers cannot display natively — convert before serving
+NEEDS_CONVERSION = {'.tiff', '.tif', '.bmp'}
+
+# Maximum number of converted images to keep in cache
+CONVERSION_CACHE_SIZE = 256
 
 
 def is_image_file(filename):
@@ -52,6 +56,20 @@ def find_image_by_stem(folder_path, stem):
     except OSError:
         pass
     return None
+
+
+@lru_cache(maxsize=CONVERSION_CACHE_SIZE)
+def convert_image(file_path, mtime):
+    """Convert an image to JPEG bytes. Cached by path + modification time.
+
+    The mtime parameter ensures the cache is invalidated when the file changes.
+    """
+    img = Image.open(file_path)
+    if img.mode in ('RGBA', 'LA', 'P'):
+        img = img.convert('RGB')
+    buf = io.BytesIO()
+    img.save(buf, format='JPEG', quality=92)
+    return buf.getvalue()
 
 
 @app.route('/')
@@ -138,15 +156,16 @@ def serve_image():
     if not os.path.abspath(file_path).startswith(folder):
         abort(403)
 
-    # Convert browser-unsupported formats (TIFF, BMP) to PNG on the fly
+    # Convert browser-unsupported formats (TIFF, BMP) to JPEG on the fly
     ext = os.path.splitext(actual_name)[1].lower()
-    if ext in CONVERT_TO_PNG:
+    if ext in NEEDS_CONVERSION:
         try:
-            img = Image.open(file_path)
-            buf = io.BytesIO()
-            img.save(buf, format='PNG')
-            buf.seek(0)
-            return send_file(buf, mimetype='image/png')
+            mtime = os.path.getmtime(file_path)
+            jpeg_bytes = convert_image(file_path, mtime)
+            return send_file(
+                io.BytesIO(jpeg_bytes),
+                mimetype='image/jpeg',
+            )
         except Exception:
             abort(500)
 
